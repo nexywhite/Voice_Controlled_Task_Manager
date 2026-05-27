@@ -73,6 +73,8 @@ function App() {
     return savedTasks ? JSON.parse(savedTasks) : [];
   });
 
+  const [pendingDeleteTask, setPendingDeleteTask] = useState(null);
+
   useEffect(() => {
     localStorage.setItem("voice-task-manager-tasks", JSON.stringify(tasks));
   }, [tasks]);
@@ -128,6 +130,47 @@ function App() {
       );
 
       return commandData.response || `Updated ${updatedTask.title} to ${updatedTask.time}.`;
+    }
+
+    if (commandData.intent === "delete_task") {
+      const target = commandData.target?.toLowerCase();
+
+      const taskToDelete = tasks.find((task) =>
+        task.title.toLowerCase().includes(target)
+      );
+
+      if (!taskToDelete) {
+        return "I could not find a matching task to delete.";
+      }
+
+      setPendingDeleteTask(taskToDelete);
+
+      return `I found ${taskToDelete.title} at ${taskToDelete.time}. Should I delete it?`;
+    }
+
+    if (commandData.intent === "confirm") {
+      if (!pendingDeleteTask) {
+        return "There is nothing to confirm right now.";
+      }
+
+      setTasks((prevTasks) =>
+        prevTasks.filter((task) => task.id !== pendingDeleteTask.id)
+      );
+
+      const deletedTitle = pendingDeleteTask.title;
+      setPendingDeleteTask(null);
+
+      return `Deleted ${deletedTitle}.`;
+    }
+
+    if (commandData.intent === "cancel") {
+      if (!pendingDeleteTask) {
+        return "There is nothing to cancel right now.";
+      }
+
+      setPendingDeleteTask(null);
+
+      return "Okay, I will not delete it.";
     }
 
     return commandData.response;

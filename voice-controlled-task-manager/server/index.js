@@ -92,8 +92,8 @@ Supported intents:
 - update_task
 - delete_task
 - unknown
-
-The delete_task always requires confirmation.
+- confirm
+- cancel
 
 For read_tasks, put the requested time range in target, for example: "today", "tomorrow", "today evening", "tomorrow morning", or "all".
 
@@ -108,6 +108,17 @@ For update_task:
 - Example: "move laundry one hour earlier" => "timeShiftMinutes": -60.
 - Do not calculate newTime from current time in this case.
 
+For delete_task:
+- target should describe the task to delete.
+- needsConfirmation should be true.
+- Do not delete immediately.
+
+For confirm:
+- Use intent "confirm" for answers like "yes", "yeah", "correct", "delete it", "confirm".
+
+For cancel:
+- Use intent "cancel" for answers like "no", "cancel", "don't delete it".
+
 Return times ONLY in HH:mm format.
 Never include seconds.
 Examples:
@@ -119,7 +130,7 @@ Return only valid JSON.
 
 Schema:
 {
-  "intent": "create_task | read_tasks | update_task | delete_task | unknown",
+  "intent": "create_task | read_tasks | update_task | delete_task | confirm | cancel | unknown",
   "tasks": [
     {
       "title": string,
