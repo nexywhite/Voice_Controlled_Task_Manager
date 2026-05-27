@@ -118,3 +118,12 @@ button:hover {
   margin-top: 16px;
   color: #374151;
 }
+
+.parsed-command {
+  margin-top: 16px;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 12px;
+  overflow-x: auto;
+  font-size: 14px;
+}

@@ -29,6 +29,7 @@ function App() {
     today.setDate(today.getDate() + diff);
     return today;
   });
+  const [parsedCommand, setParsedCommand] = useState(null);
 
   const weekDays = getWeekDays(weekStart);
 
@@ -80,12 +81,44 @@ function App() {
           }
 
           setLastCommand(data.text);
-          setStatus("Command received");
-          speak(`I heard: ${data.text}`);
+          setStatus("Understanding command...");
+
+          const controller = new AbortController();
+
+          const timeoutId = setTimeout(() => {
+            controller.abort();
+          }, 15000);
+
+          const commandResponse = await fetch("http://localhost:3001/api/command", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ text: data.text }),
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeoutId);
+
+          const commandData = await commandResponse.json();
+
+          if (!commandResponse.ok) {
+            throw new Error(commandData.error || "Command parsing failed");
+          }
+
+          setParsedCommand(commandData);
+          setStatus("Command understood");
+          speak(commandData.response);
         } catch (error) {
-          console.error(error);
-          setStatus("Transcription error");
-          speak("Sorry, I could not transcribe that.");
+          if (error.name === "AbortError") {
+            setStatus("Command understanding timed out");
+            speak("Sorry, understanding the command took too long. Please try again.");
+            return;
+          } else {
+            console.error(error);
+            setStatus("Transcription error");
+            speak("Sorry, I could not transcribe that.");
+          }
         }
 
         stream.getTracks().forEach((track) => track.stop());
@@ -129,6 +162,12 @@ function App() {
             <p className="last-command">
               Last command: <strong>{lastCommand}</strong>
             </p>
+          )}
+
+          {parsedCommand && (
+            <pre className="parsed-command">
+              {JSON.stringify(parsedCommand, null, 2)}
+            </pre>
           )}
         </div>
 
