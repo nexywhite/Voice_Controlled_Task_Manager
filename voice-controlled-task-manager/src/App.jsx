@@ -1,122 +1,178 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState } from "react";
+import "./App.css";
 
-function App() {
-  const [count, setCount] = useState(0)
+const hours = Array.from({ length: 14 }, (_, index) => index + 7);
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+function getWeekDays(startDate) {
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + index);
+    return date;
+  });
 }
 
-export default App
+function speak(text) {
+  window.speechSynthesis.cancel();
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "en-US";
+  window.speechSynthesis.speak(utterance);
+}
+
+function App() {
+  const [status, setStatus] = useState("Idle");
+  const [lastCommand, setLastCommand] = useState("");
+  const [weekStart, setWeekStart] = useState(() => {
+    const today = new Date();
+    const day = today.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    today.setDate(today.getDate() + diff);
+    return today;
+  });
+
+  const weekDays = getWeekDays(weekStart);
+
+  function changeWeek(direction) {
+    const newDate = new Date(weekStart);
+    newDate.setDate(weekStart.getDate() + direction * 7);
+    setWeekStart(newDate);
+  }
+
+  const [mediaRecorder, setMediaRecorder] = useState(null);
+  const [audioChunks, setAudioChunks] = useState([]);
+
+  async function startListening() {
+    try {
+      window.speechSynthesis.cancel();
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks = [];
+
+      recorder.onstart = () => {
+        setStatus("Recording...");
+        setLastCommand("");
+      };
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        setStatus("Transcribing...");
+
+        const audioBlob = new Blob(chunks, { type: "audio/webm" });
+        const formData = new FormData();
+        formData.append("audio", audioBlob, "command.webm");
+
+        try {
+          const response = await fetch("http://localhost:3001/api/transcribe", {
+            method: "POST",
+            body: formData,
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || "Transcription failed");
+          }
+
+          setLastCommand(data.text);
+          setStatus("Command received");
+          speak(`I heard: ${data.text}`);
+        } catch (error) {
+          console.error(error);
+          setStatus("Transcription error");
+          speak("Sorry, I could not transcribe that.");
+        }
+
+        stream.getTracks().forEach((track) => track.stop());
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setAudioChunks(chunks);
+    } catch (error) {
+      console.error(error);
+      setStatus("Microphone error");
+      speak("I could not access the microphone.");
+    }
+  }
+
+  function stopListening() {
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+    setStatus("Stopping...");
+  }
+}
+
+  return (
+    <main className="app">
+      <section className="card">
+        <h1>Voice Task Manager</h1>
+        <p className="subtitle">Manage your tasks using only voice commands.</p>
+
+        <div className="assistant-panel">
+          <p>
+            Status: <strong>{status}</strong>
+          </p>
+
+          {status === "Recording..." ? (
+            <button onClick={stopListening}>Stop Recording</button>
+          ) : (
+            <button onClick={startListening}>Start Voice Assistant</button>
+          )}
+
+          {lastCommand && (
+            <p className="last-command">
+              Last command: <strong>{lastCommand}</strong>
+            </p>
+          )}
+        </div>
+
+        <section className="calendar-section">
+          <div className="calendar-header">
+            <button onClick={() => changeWeek(-1)}>← Previous Week</button>
+            <h2>Weekly Calendar</h2>
+            <button onClick={() => changeWeek(1)}>Next Week →</button>
+          </div>
+
+          <div className="calendar-grid">
+            <div className="time-header"></div>
+
+            {weekDays.map((day) => (
+              <div className="day-header" key={day.toISOString()}>
+                <strong>
+                  {day.toLocaleDateString("en-US", { weekday: "short" })}
+                </strong>
+                <span>
+                  {day.toLocaleDateString("en-US", {
+                    day: "numeric",
+                    month: "short",
+                  })}
+                </span>
+              </div>
+            ))}
+
+            {hours.map((hour) => (
+              <div className="calendar-row" key={hour}>
+                <div className="time-cell">{hour}:00</div>
+
+                {weekDays.map((day) => (
+                  <div
+                    className="calendar-cell"
+                    key={`${day.toISOString()}-${hour}`}
+                  ></div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </section>
+      </section>
+    </main>
+  );
+}
+
+export default App;
