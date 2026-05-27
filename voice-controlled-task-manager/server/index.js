@@ -93,6 +93,28 @@ Supported intents:
 - delete_task
 - unknown
 
+The delete_task always requires confirmation.
+
+For read_tasks, put the requested time range in target, for example: "today", "tomorrow", "today evening", "tomorrow morning", or "all".
+
+For update_task:
+- target should describe the task to update.
+- newDate should contain the new date if mentioned.
+- newTime should contain the new time if mentioned.
+For update_task:
+- If the user asks to move a task earlier/later by a duration, set timeShiftMinutes.
+- Earlier means negative minutes.
+- Later means positive minutes.
+- Example: "move laundry one hour earlier" => "timeShiftMinutes": -60.
+- Do not calculate newTime from current time in this case.
+
+Return times ONLY in HH:mm format.
+Never include seconds.
+Examples:
+07:00
+19:33
+21:05
+
 Return only valid JSON.
 
 Schema:
@@ -108,6 +130,7 @@ Schema:
   "target": string | null,
   "newDate": string | null,
   "newTime": string | null,
+  "timeShiftMinutes": number | null,
   "needsConfirmation": boolean,
   "response": string
 }
@@ -122,6 +145,17 @@ Schema:
     });
 
     const command = JSON.parse(response.choices[0].message.content);
+
+    if (command.tasks) {
+        command.tasks = command.tasks.map((task) => ({
+            ...task,
+            time: task.time ? task.time.slice(0, 5) : null,
+        }));
+    }
+
+    if (command.newTime) {
+        command.newTime = command.newTime.slice(0, 5);
+    }
 
     console.log("Command parsed successfully");
 

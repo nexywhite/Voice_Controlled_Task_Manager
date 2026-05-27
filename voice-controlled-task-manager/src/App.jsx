@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 
 const hours = Array.from({ length: 14 }, (_, index) => index + 7);
@@ -17,6 +17,32 @@ function speak(text) {
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "en-US";
   window.speechSynthesis.speak(utterance);
+}
+
+function getTasksSummary(tasks, commandData) {
+  const today = new Date().toISOString().split("T")[0];
+
+  let filteredTasks = tasks;
+
+  if (commandData.target?.includes("today")) {
+    filteredTasks = tasks.filter((task) => task.date === today);
+  }
+
+  if (filteredTasks.length === 0) {
+    return "You do not have any matching tasks.";
+  }
+
+  const sortedTasks = [...filteredTasks].sort((a, b) => {
+    const dateCompare = a.date.localeCompare(b.date);
+    if (dateCompare !== 0) return dateCompare;
+    return a.time.localeCompare(b.time);
+  });
+
+  const taskText = sortedTasks
+    .map((task) => `${task.title} at ${task.time}`)
+    .join(", ");
+
+  return `You have ${sortedTasks.length} task${sortedTasks.length > 1 ? "s" : ""}: ${taskText}.`;
 }
 
 function App() {
@@ -41,6 +67,71 @@ function App() {
 
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const [audioChunks, setAudioChunks] = useState([]);
+
+  const [tasks, setTasks] = useState(() => {
+    const savedTasks = localStorage.getItem("voice-task-manager-tasks");
+    return savedTasks ? JSON.parse(savedTasks) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem("voice-task-manager-tasks", JSON.stringify(tasks));
+  }, [tasks]);
+
+  function handleCommand(commandData) {
+    if (commandData.intent === "create_task") {
+      const newTasks = commandData.tasks.map((task) => ({
+        id: crypto.randomUUID(),
+        title: task.title,
+        date: task.date,
+        time: task.time,
+      }));
+
+      setTasks((prevTasks) => [...prevTasks, ...newTasks]);
+      return commandData.response;
+    }
+
+    if (commandData.intent === "read_tasks") {
+      return getTasksSummary(tasks, commandData);
+    }
+
+    if (commandData.intent === "update_task") {
+      const target = commandData.target?.toLowerCase();
+
+      const taskToUpdate = tasks.find((task) =>
+        task.title.toLowerCase().includes(target)
+      );
+
+      if (!taskToUpdate) {
+        return "I could not find a matching task to update.";
+      }
+
+      let newTime = commandData.newTime || taskToUpdate.time;
+
+      if (commandData.timeShiftMinutes) {
+        const [hours, minutes] = taskToUpdate.time.split(":").map(Number);
+        const date = new Date(taskToUpdate.date);
+        date.setHours(hours, minutes + commandData.timeShiftMinutes);
+
+        newTime = date.toTimeString().slice(0, 5);
+      }
+
+      const updatedTask = {
+        ...taskToUpdate,
+        date: commandData.newDate || taskToUpdate.date,
+        time: newTime,
+      };
+
+      setTasks((prevTasks) =>
+        prevTasks.map((task) =>
+          task.id === taskToUpdate.id ? updatedTask : task
+        )
+      );
+
+      return commandData.response || `Updated ${updatedTask.title} to ${updatedTask.time}.`;
+    }
+
+    return commandData.response;
+  }
 
   async function startListening() {
     try {
@@ -107,8 +198,10 @@ function App() {
           }
 
           setParsedCommand(commandData);
+          const assistantResponse = handleCommand(commandData);
           setStatus("Command understood");
-          speak(commandData.response);
+          speak(assistantResponse);
+
         } catch (error) {
           if (error.name === "AbortError") {
             setStatus("Command understanding timed out");
@@ -200,10 +293,22 @@ function App() {
                 <div className="time-cell">{hour}:00</div>
 
                 {weekDays.map((day) => (
-                  <div
-                    className="calendar-cell"
-                    key={`${day.toISOString()}-${hour}`}
-                  ></div>
+                  <div className="calendar-cell" key={`${day.toISOString()}-${hour}`}>
+                    {tasks
+                      .filter((task) => {
+                        const cellDate = day.toISOString().split("T")[0];
+                        const taskHour = Number(task.time?.split(":")[0]);
+
+                        return task.date === cellDate && taskHour === hour;
+                      })
+                      .sort((a, b) => a.time.localeCompare(b.time))
+                      .map((task) => (
+                        <div className="task-card" key={task.id}>
+                          <strong>{task.time}</strong>
+                          <span>{task.title}</span>
+                        </div>
+                      ))}
+                  </div>
                 ))}
               </div>
             ))}

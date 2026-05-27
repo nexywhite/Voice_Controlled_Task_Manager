@@ -127,3 +127,15 @@ button:hover {
   overflow-x: auto;
   font-size: 14px;
 }
+
+.task-card {
+  margin: 6px;
+  padding: 8px;
+  border-radius: 10px;
+  background: #dbeafe;
+  color: #1e3a8a;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
