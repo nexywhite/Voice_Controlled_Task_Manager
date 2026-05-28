@@ -139,20 +139,19 @@ Backend:   http://localhost:3001
 
 ## Project Structure
 
+```text
 voice-task-manager/
-│
 ├── server/
 │   └── index.js
-│
 ├── src/
 │   ├── App.jsx
 │   ├── App.css
 │   └── main.jsx
-│
 ├── uploads/
 ├── .env
 ├── package.json
 └── README.md
+```
 
 ## Deployment
 
