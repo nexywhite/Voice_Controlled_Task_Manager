@@ -206,3 +206,22 @@ button:hover {
     gap: 12px;
   }
 }
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.recording-button {
+  background: #dc2626;
+}
+
+.recording-button:hover {
+  background: #b91c1c;
+}
+
+.recording-indicator {
+  margin-top: 14px;
+  color: #dc2626;
+  font-weight: 700;
+}

@@ -390,6 +390,8 @@ function App() {
       const recorder = new MediaRecorder(stream);
       const chunks = [];
 
+      let silenceTimer = null;
+
       recorder.onstart = () => {
         setStatus("Recording...");
         setLastCommand("");
@@ -402,6 +404,10 @@ function App() {
       };
 
       recorder.onstop = async () => {
+        if (silenceTimer) {
+          clearTimeout(silenceTimer);
+        }
+        
         setStatus("Transcribing...");
 
         const audioBlob = new Blob(chunks, { type: "audio/webm" });
@@ -467,6 +473,13 @@ function App() {
       };
 
       recorder.start();
+
+      silenceTimer = setTimeout(() => {
+        if (recorder.state === "recording") {
+          recorder.stop();
+        }
+      }, 7000);
+
       setMediaRecorder(recorder);
       setAudioChunks(chunks);
     } catch (error) {
@@ -495,9 +508,24 @@ function App() {
           </p>
 
           {status === "Recording..." ? (
-            <button onClick={stopListening}>Stop Recording</button>
+            <button className="recording-button" onClick={stopListening}>
+              Stop Recording
+            </button>
           ) : (
-            <button onClick={startListening}>Start Voice Assistant</button>
+            <button
+              onClick={startListening}
+              disabled={
+                status === "Transcribing..." ||
+                status === "Understanding command..." ||
+                status === "Stopping..."
+              }
+            >
+              Start Voice Assistant
+            </button>
+          )}
+
+          {status === "Recording..." && (
+            <p className="recording-indicator">● Listening now...</p>
           )}
 
           {lastCommand && (
