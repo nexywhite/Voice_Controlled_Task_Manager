@@ -94,6 +94,7 @@ Supported intents:
 - unknown
 - confirm
 - cancel
+- clarify_selection
 
 For read_tasks:
 - Always resolve the requested time range into dateRange.
@@ -146,6 +147,8 @@ Reference resolution:
   reference.type = "semantic"
   reference.text = task description
 
+If the user answers a clarification question with "first", "second", "third", "last", etc., return intent "clarify_selection" and fill reference.type as "list_position".
+
 Return times ONLY in HH:mm format.
 Never include seconds.
 Examples:
@@ -157,7 +160,7 @@ Return only valid JSON.
 
 Schema:
 {
-  "intent": "create_task | read_tasks | update_task | delete_task | confirm | cancel | unknown",
+  "intent": "create_task | read_tasks | update_task | delete_task | confirm | cancel | clarify_selection | unknown",
   "tasks": [
     {
         "title": string,

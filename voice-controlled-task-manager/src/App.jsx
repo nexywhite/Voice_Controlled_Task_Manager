@@ -92,6 +92,7 @@ function App() {
     return today;
   });
   const [parsedCommand, setParsedCommand] = useState(null);
+  const [pendingAmbiguousAction, setPendingAmbiguousAction] = useState(null);
 
   const weekDays = getWeekDays(weekStart);
 
@@ -147,7 +148,86 @@ function App() {
     );
   }
 
+  function findMatchingTasks(commandData) {
+    const target =
+      commandData.target?.toLowerCase() ||
+      commandData.reference?.text?.toLowerCase();
+
+    if (!target) return [];
+
+    return tasks.filter((task) =>
+      task.title.toLowerCase().includes(target)
+    );
+  }
+
   function handleCommand(commandData) {
+    if (pendingAmbiguousAction) {
+      const reference = Array.isArray(commandData.reference)
+        ? commandData.reference[0]
+        : commandData.reference;
+
+      const position = reference?.position;
+
+      if (!position) {
+        return "Please tell me which option you mean, for example: first, second, or third.";
+      }
+
+      const selectedTask =
+        position === -1
+          ? pendingAmbiguousAction.options[pendingAmbiguousAction.options.length - 1]
+          : pendingAmbiguousAction.options[position - 1];
+
+      if (!selectedTask) {
+        return "I could not find that option. Please try again.";
+      }
+
+      const originalAction = pendingAmbiguousAction;
+      setPendingAmbiguousAction(null);
+
+      const resolvedCommand = {
+        ...originalAction.commandData,
+        reference: {
+          type: "semantic",
+          text: selectedTask.title,
+          position: null,
+          label: null,
+        },
+        target: selectedTask.title,
+      };
+
+      if (originalAction.type === "delete_task") {
+        setPendingDeleteTask(selectedTask);
+        return `Should I delete ${selectedTask.title} at ${selectedTask.time}?`;
+      }
+
+      if (originalAction.type === "update_task") {
+        let newTime = resolvedCommand.newTime || selectedTask.time;
+
+        if (resolvedCommand.timeShiftMinutes) {
+          const [hours, minutes] = selectedTask.time.split(":").map(Number);
+          const date = new Date(selectedTask.date);
+          date.setHours(hours, minutes + resolvedCommand.timeShiftMinutes);
+          newTime = date.toTimeString().slice(0, 5);
+        }
+
+        const updatedTask = {
+          ...selectedTask,
+          date: resolvedCommand.newDate || selectedTask.date,
+          time: newTime,
+        };
+
+        setTasks((prevTasks) =>
+          prevTasks.map((task) =>
+            task.id === selectedTask.id ? updatedTask : task
+          )
+        );
+
+        setLastReferencedTask(updatedTask);
+
+        return `Updated ${updatedTask.title} to ${updatedTask.time}.`;
+      }
+    }
+
     if (commandData.intent === "create_task") {
       const newTasks = commandData.tasks.map((task) => ({
         id: crypto.randomUUID(),
@@ -157,7 +237,12 @@ function App() {
       }));
 
       setTasks((prevTasks) => [...prevTasks, ...newTasks]);
-      return commandData.response;
+
+      if (newTasks.length === 1) {
+        return `Created ${newTasks[0].title} at ${newTasks[0].time}.`;
+      }
+
+      return `Created ${newTasks.length} tasks.`;
     }
 
     if (commandData.intent === "read_tasks") {
@@ -172,18 +257,36 @@ function App() {
     }
 
     if (commandData.intent === "update_task") {
-      const target = commandData.target?.toLowerCase();
-
-      const taskToUpdate = resolveTaskReference(
+      const referencedTask = resolveTaskReference(
         commandData,
         tasks,
         lastReferencedTask,
         lastReadTasks
       );
-      
-      if (!taskToUpdate) {
+
+      const matchingTasks = referencedTask
+        ? [referencedTask]
+        : findMatchingTasks(commandData);
+
+      if (matchingTasks.length === 0) {
         return "I could not find a matching task to update.";
       }
+
+      if (matchingTasks.length > 1) {
+        setPendingAmbiguousAction({
+          type: "update_task",
+          commandData,
+          options: matchingTasks,
+        });
+
+        const optionsText = matchingTasks
+          .map((task, index) => `${index + 1}: ${task.title} at ${task.time}`)
+          .join(", ");
+
+        return `I found multiple matching tasks: ${optionsText}. Which one do you mean?`;
+      }
+
+      const taskToUpdate = matchingTasks[0];
 
       let newTime = commandData.newTime || taskToUpdate.time;
 
@@ -191,7 +294,6 @@ function App() {
         const [hours, minutes] = taskToUpdate.time.split(":").map(Number);
         const date = new Date(taskToUpdate.date);
         date.setHours(hours, minutes + commandData.timeShiftMinutes);
-
         newTime = date.toTimeString().slice(0, 5);
       }
 
@@ -207,22 +309,42 @@ function App() {
         )
       );
 
+      setLastReferencedTask(updatedTask);
+
       return commandData.response || `Updated ${updatedTask.title} to ${updatedTask.time}.`;
     }
 
     if (commandData.intent === "delete_task") {
-      const target = commandData.target?.toLowerCase();
-
-      const taskToDelete = resolveTaskReference(
+      const referencedTask = resolveTaskReference(
         commandData,
         tasks,
         lastReferencedTask,
         lastReadTasks
       );
 
-      if (!taskToDelete) {
+      const matchingTasks = referencedTask
+        ? [referencedTask]
+        : findMatchingTasks(commandData);
+
+      if (matchingTasks.length === 0) {
         return "I could not find a matching task to delete.";
       }
+
+      if (matchingTasks.length > 1) {
+        setPendingAmbiguousAction({
+          type: "delete_task",
+          commandData,
+          options: matchingTasks,
+        });
+
+        const optionsText = matchingTasks
+          .map((task, index) => `${index + 1}: ${task.title} at ${task.time}`)
+          .join(", ");
+
+        return `I found multiple matching tasks: ${optionsText}. Which one do you mean?`;
+      }
+
+      const taskToDelete = matchingTasks[0];
 
       setPendingDeleteTask(taskToDelete);
 
@@ -256,7 +378,7 @@ function App() {
 
     setLastReferencedTask(updatedTask);
 
-    return commandData.response;
+    return commandData.response || "Done.";
   }
 
   async function startListening() {
