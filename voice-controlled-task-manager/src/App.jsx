@@ -419,7 +419,10 @@ function App() {
         formData.append("audio", audioBlob, "command.webm");
 
         try {
-          const response = await fetch(`${API_URL}/api/transcribe`);
+          const response = await fetch(`${API_URL}/api/transcribe`, {
+            method: "POST",
+            body: formData,
+          });
 
           const data = await response.json();
 
@@ -442,7 +445,6 @@ function App() {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({ text: data.text }),
-            signal: controller.signal,
           });
 
           clearTimeout(timeoutId);
