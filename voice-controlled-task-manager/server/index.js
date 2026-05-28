@@ -95,7 +95,18 @@ Supported intents:
 - confirm
 - cancel
 
-For read_tasks, put the requested time range in target, for example: "today", "tomorrow", "today evening", "tomorrow morning", or "all".
+For read_tasks:
+- Always resolve the requested time range into dateRange.
+- dateRange.startDate and dateRange.endDate must be YYYY-MM-DD.
+- endDate is inclusive.
+- Examples:
+  "today" -> startDate today, endDate today
+  "tomorrow" -> startDate tomorrow, endDate tomorrow
+  "this week" -> Monday to Sunday of current week
+  "next week" -> Monday to Sunday of next week
+  "in three days" -> that exact date
+  "this weekend" -> upcoming Saturday and Sunday
+  "today evening" -> same date, plus timeOfDay = "evening"
 
 For update_task:
 - target should describe the task to update.
@@ -119,6 +130,22 @@ For confirm:
 For cancel:
 - Use intent "cancel" for answers like "no", "cancel", "don't delete it".
 
+Reference resolution:
+- If the user refers to "previous one", use:
+  reference.type = "last_task"
+- If the user refers to a position from the last read task list, use:
+  reference.type = "list_position"
+  reference.position = 1-based position
+- Examples:
+  "first one" -> position 1
+  "second one" -> position 2
+  "third one" -> position 3
+  "last one" -> position -1
+  "middle one" -> position 0
+- If the user names the task directly, use:
+  reference.type = "semantic"
+  reference.text = task description
+
 Return times ONLY in HH:mm format.
 Never include seconds.
 Examples:
@@ -133,15 +160,27 @@ Schema:
   "intent": "create_task | read_tasks | update_task | delete_task | confirm | cancel | unknown",
   "tasks": [
     {
-      "title": string,
-      "date": string | null,
-      "time": string | null
+        "title": string,
+        "date": string | null,
+        "time": string | null
     }
   ],
+  "reference": {
+        "type": "last_task | list_position | semantic | none",
+        "position": "number | null",
+        "label": "string | null",
+        "text": "string | null"
+},
   "target": string | null,
   "newDate": string | null,
   "newTime": string | null,
   "timeShiftMinutes": number | null,
+  "dateRange": {
+    "startDate": "YYYY-MM-DD | null",
+    "endDate": "YYYY-MM-DD | null",
+    "label": "string | null"
+},
+  "timeOfDay": "morning | afternoon | evening | night | all | null"
   "needsConfirmation": boolean,
   "response": string
 }

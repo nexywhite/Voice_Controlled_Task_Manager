@@ -19,17 +19,48 @@ function speak(text) {
   window.speechSynthesis.speak(utterance);
 }
 
-function getTasksSummary(tasks, commandData) {
-  const today = new Date().toISOString().split("T")[0];
+function getDateString(offsetDays = 0) {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  return date.toISOString().split("T")[0];
+}
 
+function matchesTimeOfDay(time, timeOfDay) {
+  if (!time) return false;
+
+  const hour = Number(time.split(":")[0]);
+
+  if (timeOfDay === "morning") return hour >= 5 && hour < 12;
+  if (timeOfDay === "afternoon") return hour >= 12 && hour < 17;
+  if (timeOfDay === "evening") return hour >= 17 && hour < 22;
+  if (timeOfDay === "night") return hour >= 22 || hour < 5;
+
+  return true;
+}
+
+function getTasksSummary(tasks, commandData) {
   let filteredTasks = tasks;
 
-  if (commandData.target?.includes("today")) {
-    filteredTasks = tasks.filter((task) => task.date === today);
+  const startDate = commandData.dateRange?.startDate;
+  const endDate = commandData.dateRange?.endDate;
+
+  if (startDate && endDate) {
+    filteredTasks = filteredTasks.filter(
+      (task) => task.date >= startDate && task.date <= endDate
+    );
+  }
+
+  if (commandData.timeOfDay && commandData.timeOfDay !== "all") {
+    filteredTasks = filteredTasks.filter((task) =>
+      matchesTimeOfDay(task.time, commandData.timeOfDay)
+    );
   }
 
   if (filteredTasks.length === 0) {
-    return "You do not have any matching tasks.";
+    return {
+      summary: "You do not have any matching tasks.",
+      sortedTasks: [],
+    };
   }
 
   const sortedTasks = [...filteredTasks].sort((a, b) => {
@@ -39,10 +70,15 @@ function getTasksSummary(tasks, commandData) {
   });
 
   const taskText = sortedTasks
-    .map((task) => `${task.title} at ${task.time}`)
+    .map((task) => `${task.title} on ${task.date} at ${task.time}`)
     .join(", ");
 
-  return `You have ${sortedTasks.length} task${sortedTasks.length > 1 ? "s" : ""}: ${taskText}.`;
+  return {
+    summary: `You have ${sortedTasks.length} task${
+      sortedTasks.length > 1 ? "s" : ""
+    }: ${taskText}.`,
+    sortedTasks,
+  };
 }
 
 function App() {
@@ -75,9 +111,41 @@ function App() {
 
   const [pendingDeleteTask, setPendingDeleteTask] = useState(null);
 
+  const [lastReferencedTask, setLastReferencedTask] = useState(null);
+  const [lastReadTasks, setLastReadTasks] = useState([]);
+
   useEffect(() => {
     localStorage.setItem("voice-task-manager-tasks", JSON.stringify(tasks));
   }, [tasks]);
+
+  function resolveTaskReference(commandData, tasks, lastReferencedTask, lastReadTasks) {
+    const reference = commandData.reference;
+
+    if (reference?.type === "last_task") {
+      return lastReferencedTask;
+    }
+
+    if (reference?.type === "list_position") {
+      if (reference.position === -1) {
+        return lastReadTasks[lastReadTasks.length - 1];
+      }
+
+      if (reference.position === 0) {
+        const middleIndex = Math.floor(lastReadTasks.length / 2);
+        return lastReadTasks[middleIndex];
+      }
+
+      return lastReadTasks[reference.position - 1];
+    }
+
+    const target = commandData.target?.toLowerCase() || reference?.text?.toLowerCase();
+
+    if (!target) return null;
+
+    return tasks.find((task) =>
+      task.title.toLowerCase().includes(target)
+    );
+  }
 
   function handleCommand(commandData) {
     if (commandData.intent === "create_task") {
@@ -93,16 +161,26 @@ function App() {
     }
 
     if (commandData.intent === "read_tasks") {
-      return getTasksSummary(tasks, commandData);
+      const { summary, sortedTasks } = getTasksSummary(
+        tasks,
+        commandData
+      );
+
+      setLastReadTasks(sortedTasks);
+
+      return summary;
     }
 
     if (commandData.intent === "update_task") {
       const target = commandData.target?.toLowerCase();
 
-      const taskToUpdate = tasks.find((task) =>
-        task.title.toLowerCase().includes(target)
+      const taskToUpdate = resolveTaskReference(
+        commandData,
+        tasks,
+        lastReferencedTask,
+        lastReadTasks
       );
-
+      
       if (!taskToUpdate) {
         return "I could not find a matching task to update.";
       }
@@ -135,8 +213,11 @@ function App() {
     if (commandData.intent === "delete_task") {
       const target = commandData.target?.toLowerCase();
 
-      const taskToDelete = tasks.find((task) =>
-        task.title.toLowerCase().includes(target)
+      const taskToDelete = resolveTaskReference(
+        commandData,
+        tasks,
+        lastReferencedTask,
+        lastReadTasks
       );
 
       if (!taskToDelete) {
@@ -172,6 +253,8 @@ function App() {
 
       return "Okay, I will not delete it.";
     }
+
+    setLastReferencedTask(updatedTask);
 
     return commandData.response;
   }
