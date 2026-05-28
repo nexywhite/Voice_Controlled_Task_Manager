@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const hours = Array.from({ length: 14 }, (_, index) => index + 7);
 
 function getWeekDays(startDate) {
@@ -415,10 +417,7 @@ function App() {
         formData.append("audio", audioBlob, "command.webm");
 
         try {
-          const response = await fetch("http://localhost:3001/api/transcribe", {
-            method: "POST",
-            body: formData,
-          });
+          const response = await fetch(`${API_URL}/api/transcribe`);
 
           const data = await response.json();
 
@@ -435,7 +434,7 @@ function App() {
             controller.abort();
           }, 15000);
 
-          const commandResponse = await fetch("http://localhost:3001/api/command", {
+          const commandResponse = await fetch(`${API_URL}/api/command`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
