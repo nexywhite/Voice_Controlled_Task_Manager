@@ -93,6 +93,7 @@ function App() {
   });
   const [parsedCommand, setParsedCommand] = useState(null);
   const [pendingAmbiguousAction, setPendingAmbiguousAction] = useState(null);
+  const [showDebug, setShowDebug] = useState(false);
 
   const weekDays = getWeekDays(weekStart);
 
@@ -505,12 +506,29 @@ function App() {
             </p>
           )}
 
-          {parsedCommand && (
+          <div className="debug-toggle">
+            <button onClick={() => setShowDebug((prev) => !prev)}>
+              {showDebug ? "Hide Debug JSON" : "Show Debug JSON"}
+            </button>
+          </div>
+
+          {showDebug && parsedCommand && (
             <pre className="parsed-command">
               {JSON.stringify(parsedCommand, null, 2)}
             </pre>
           )}
         </div>
+
+        <section className="examples-section">
+          <h2>Try saying</h2>
+
+          <div className="examples-grid">
+            <span>Create a task for gym tomorrow at 7 AM</span>
+            <span>What is my agenda this week?</span>
+            <span>Move the second one one hour later</span>
+            <span>Delete the laundry task</span>
+          </div>
+        </section>
 
         <section className="calendar-section">
           <div className="calendar-header">

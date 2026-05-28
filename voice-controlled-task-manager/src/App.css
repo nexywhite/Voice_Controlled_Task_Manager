@@ -4,9 +4,9 @@
 
 body {
   margin: 0;
-  font-family: Arial, sans-serif;
-  background: #f4f6f8;
-  color: #1f2937;
+  font-family: Inter, Arial, sans-serif;
+  background: linear-gradient(135deg, #eef2ff, #f8fafc);
+  color: #111827;
 }
 
 .app {
@@ -16,43 +16,67 @@ body {
 
 .card {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1320px;
   margin: 0 auto;
-  background: white;
-  border-radius: 24px;
-  padding: 32px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 28px;
+  padding: 40px;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.12);
+}
+
+h1 {
+  margin: 0 0 16px;
+  font-size: 56px;
+  font-weight: 800;
+  text-align: center;
+  color: #111827;
+  line-height: 1.05;
 }
 
 .subtitle {
-  color: #6b7280;
-  margin-bottom: 32px;
+  text-align: center;
+  color: #4b5563;
+  font-size: 20px;
+  margin: 0 0 36px;
+  line-height: 1.4;
 }
 
-.assistant-panel {
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  padding: 20px;
-  margin-bottom: 32px;
+.assistant-panel,
+.examples-section {
+  background: white;
+  border: 1px solid #dbe3ef;
+  border-radius: 22px;
+  padding: 28px;
+  text-align: center;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+.examples-section h2,
+.calendar-header h2 {
+  color: #111827;
+  font-size: 28px;
+  margin: 0 0 20px;
 }
 
 button {
   border: none;
   border-radius: 999px;
-  padding: 12px 20px;
-  background: #111827;
+  padding: 13px 24px;
+  background: #2563eb;
   color: white;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 700;
   cursor: pointer;
 }
 
 button:hover {
-  background: #374151;
+  background: #1d4ed8;
 }
 
 .calendar-section {
-  border-top: 1px solid #e5e7eb;
-  padding-top: 24px;
+  margin-top: 36px;
+  border-top: 1px solid #dbe3ef;
+  padding-top: 30px;
 }
 
 .calendar-header {
@@ -65,9 +89,10 @@ button:hover {
 .calendar-grid {
   display: grid;
   grid-template-columns: 80px repeat(7, 1fr);
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
+  border: 1px solid #dbe3ef;
+  border-radius: 20px;
   overflow: hidden;
+  background: white;
 }
 
 .calendar-row {
@@ -83,40 +108,43 @@ button:hover {
 }
 
 .day-header {
-  min-height: 64px;
-  padding: 12px;
-  background: #f9fafb;
+  min-height: 72px;
+  padding: 14px;
+  background: #eff6ff;
   text-align: center;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  color: #1e3a8a;
 }
 
 .day-header span {
-  color: #6b7280;
+  color: #2563eb;
   font-size: 14px;
 }
 
 .time-cell {
-  min-height: 64px;
-  padding: 8px;
-  background: #f9fafb;
-  color: #6b7280;
+  min-height: 70px;
+  padding: 10px;
+  background: #f8fafc;
+  color: #475569;
   font-size: 14px;
+  font-weight: 600;
 }
 
 .calendar-cell {
-  min-height: 64px;
-  background: white;
+  min-height: 70px;
+  background: #ffffff;
 }
 
 .calendar-cell:hover {
-  background: #f3f4f6;
+  background: #f8fafc;
 }
 
 .last-command {
-  margin-top: 16px;
-  color: #374151;
+  margin-top: 22px;
+  color: #1f2937;
+  font-size: 18px;
 }
 
 .parsed-command {
@@ -130,12 +158,51 @@ button:hover {
 
 .task-card {
   margin: 6px;
-  padding: 8px;
-  border-radius: 10px;
+  padding: 10px;
+  border-radius: 14px;
   background: #dbeafe;
   color: #1e3a8a;
   font-size: 13px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  border-left: 4px solid #2563eb;
+}
+
+.debug-toggle {
+  margin-top: 16px;
+}
+
+.examples-section {
+  margin-bottom: 32px;
+  padding: 20px;
+  border-radius: 16px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+}
+
+.examples-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.examples-grid span {
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 14px;
+  color: #1f2937;
+  border: 1px solid #dbe3ef;
+  font-size: 16px;
+}
+
+@media (max-width: 700px) {
+  .examples-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-header {
+    flex-direction: column;
+    gap: 12px;
+  }
 }
